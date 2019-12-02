@@ -33,7 +33,7 @@ class SmallXMLHandler(ContentHandler):
 
 
 if __name__ == "__main__":
-# Constantes. Dirección IP del servidor y contenido a enviar
+# Constantes. Fichero xml, metodo a usar y opcion de cada metodo
     try:
         CONFIG = sys.argv[1]
         METHOD  = sys.argv[2]
