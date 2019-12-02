@@ -49,13 +49,17 @@ if __name__ == "__main__":
     config = cHandler.get_tags()
 
 # Compruebo que metodo me ha Introducido el cliente por la shell y elaboro el mensaje
+    account_username = config['account_username']
+    uaserver_puerto = config['uaserver_puerto']
+    rtpaudio_puerto = config['rtpaudio_puerto']
     if METHOD == 'REGISTER':
-        account_username = config['account_username']
-        uaserver_puerto = config['uaserver_puerto']
         LINES = (METHOD + ' sip:'+ account_username + ':'+ uaserver_puerto + ' SIP/2.0 ' + 'Expires: '+ OPCION)
     elif METHOD == 'INVITE':
-        print('invite')
-        LINES = (METHOD + ' sip:'+ account_username + ':'+ uaserver_puerto + ' SIP/2.0 ' + 'Expires: '+ OPCION)
+        LINES = (METHOD + ' sip:'+ OPCION + ' SIP/2.0\r\n\r\n')
+        LINES = LINES + ('Content-Type: application/sdp\r\n\r\n')
+        LINES = LINES + ('v=0\r\n\r\n' + 'o=' + account_username + ' ' + uaserver_puerto + '\r\n\r\n')
+        LINES = LINES + ('s=misesion\r\n\r\n' + 't=0\r\n\r\n')
+        LINES = LINES + ('m=' + 'audio ' + rtpaudio_puerto + ' RTP')
     elif METHOD == 'BYE':
         print("bye")
     else:
