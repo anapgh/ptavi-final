@@ -19,6 +19,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 parametros_client = ''.join(message_client).split()
                 method = parametros_client[0]
                 others = parametros_client[1:]
+                print(others)
                 sip = others[0].split(':')[0]
                 version = others[1]
                 if sip != 'sip' or version != 'SIP/2.0':
@@ -27,6 +28,11 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 else:
                     if method == 'REGISTER':
                         request = request = (b"SIP/2.0 200 OK\r\n\r\n")
+                        self.wfile.write(request)
+                    if method == 'INVITE':
+                        request = (b'SIP/2.0 100 Trying \r\n\r\n')
+                        request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
+                        request = (request + b'SIP/2.0 200 OK\r\n\r\n')
                         self.wfile.write(request)
 
 
