@@ -15,6 +15,20 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         for line in self.rfile:
             message_client = line.decode('utf-8')
             print(message_client)
+            if message_client != '\r\n':
+                parametros_client = ''.join(message_client).split()
+                method = parametros_client[0]
+                others = parametros_client[1:]
+                sip = others[0].split(':')[0]
+                version = others[1]
+                if sip != 'sip' or version != 'SIP/2.0':
+                    request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+                    self.wfile.write(request)
+                else:
+                    if method == 'REGISTER':
+                        request = request = (b"SIP/2.0 200 OK\r\n\r\n")
+                        self.wfile.write(request)
+
 
 class SmallXMLHandler(ContentHandler):
 
