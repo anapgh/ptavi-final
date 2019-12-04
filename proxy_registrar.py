@@ -12,28 +12,34 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
     def handle(self):
-        for line in self.rfile:
-            message_client = line.decode('utf-8')
+
+            line = self.rfile.read()
+            line = line.decode('utf-8')
+            message_client = line.split('\r\n\r\n')
             print(message_client)
-            if message_client != '\r\n':
-                parametros_client = ''.join(message_client).split()
-                method = parametros_client[0]
-                others = parametros_client[1:]
-                print(others)
-                sip = others[0].split(':')[0]
-                version = others[1]
-                if sip != 'sip' or version != 'SIP/2.0':
-                    request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+            cabecera = message_client[0].split(' ')
+            method = cabecera[0]
+            if method == 'REGISTER':
+                origen = message_client[3].split(' ')
+                origen_username = origen[0].split('=')[1]
+                origen_ip = origen[1]
+                puerto_audio = message_client[6].split(' ')[1]
+            sip = cabecera[1].split(':')
+            opcion = sip[1]
+            sip =sip[0]
+            version = cabecera[2]
+            if sip != 'sip' or version != 'SIP/2.0':
+                request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+                self.wfile.write(request)
+            else:
+                if method == 'REGISTER':
+                    request = request = (b"SIP/2.0 200 OK\r\n\r\n")
                     self.wfile.write(request)
-                else:
-                    if method == 'REGISTER':
-                        request = request = (b"SIP/2.0 200 OK\r\n\r\n")
-                        self.wfile.write(request)
-                    if method == 'INVITE':
-                        request = (b'SIP/2.0 100 Trying \r\n\r\n')
-                        request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
-                        request = (request + b'SIP/2.0 200 OK\r\n\r\n')
-                        self.wfile.write(request)
+                if method == 'INVITE':
+                    request = (b'SIP/2.0 100 Trying \r\n\r\n')
+                    request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
+                    request = (request + b'SIP/2.0 200 OK\r\n\r\n')
+                    self.wfile.write(request)
 
 
 class SmallXMLHandler(ContentHandler):
