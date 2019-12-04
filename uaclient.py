@@ -51,14 +51,17 @@ if __name__ == "__main__":
 # Compruebo que metodo me ha Introducido el cliente por la shell y elaboro el mensaje
     account_username = config['account_username']
     uaserver_puerto = config['uaserver_puerto']
+    uaserver_ip = config['uaserver_ip']
     rtpaudio_puerto = config['rtpaudio_puerto']
     if METHOD == 'REGISTER':
         LINES = (METHOD + ' sip:'+ account_username + ':'+ uaserver_puerto + ' SIP/2.0 ' + 'Expires: '+ OPCION)
     elif METHOD == 'INVITE':
         LINES = (METHOD + ' sip:'+ OPCION + ' SIP/2.0\r\n\r\n')
         LINES = LINES + ('Content-Type: application/sdp\r\n\r\n')
-        LINES = LINES + ('v=0\r\n\r\n' + 'o=' + account_username + ' ' + uaserver_puerto + '\r\n\r\n')
-        LINES = LINES + ('s=misesion\r\n\r\n' + 't=0\r\n\r\n')
+        LINES = LINES + ('v=0\r\n\r\n')
+        LINES = LINES + ('o=' + account_username + ' ' + uaserver_ip + '\r\n\r\n')
+        LINES = LINES + ('s=misesion\r\n\r\n')
+        LINES = LINES + ('t=0\r\n\r\n')
         LINES = LINES + ('m=' + 'audio ' + rtpaudio_puerto + ' RTP')
     elif METHOD == 'BYE':
         print("bye")
