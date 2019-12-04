@@ -64,7 +64,7 @@ if __name__ == "__main__":
         LINES = LINES + ('t=0\r\n\r\n')
         LINES = LINES + ('m=' + 'audio ' + rtpaudio_puerto + ' RTP')
     elif METHOD == 'BYE':
-        print("bye")
+        LINES = (METHOD + ' sip:' + OPCION + ' SIP/2.0')
     else:
         print("no vale")
 
@@ -76,6 +76,14 @@ if __name__ == "__main__":
         print("Enviando:", LINES)
         my_socket.send(bytes(LINES, 'utf-8') + b'\r\n\r\n')
         data = my_socket.recv(1024)
-        print('Recibido -- ', data.decode('utf-8'))
+        request  = data.decode('utf-8')
+        print('Recibido -- ', request)
 
+        """ Enviamos el mensaje ACK. """
+
+        if METHOD == 'INVITE':
+            request = request.split('\r\n\r\n')[2]
+            if request == 'SIP/2.0 200 OK':
+                LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
+                my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
     print("Socket terminado.")
