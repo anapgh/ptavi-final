@@ -19,7 +19,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             print(message_client)
             cabecera = message_client[0].split(' ')
             method = cabecera[0]
-            if method == 'REGISTER':
+            if method == 'INVITE': #Cojo los valores de SDP
                 origen = message_client[3].split(' ')
                 origen_username = origen[0].split('=')[1]
                 origen_ip = origen[1]
@@ -39,6 +39,12 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     request = (b'SIP/2.0 100 Trying \r\n\r\n')
                     request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
                     request = (request + b'SIP/2.0 200 OK\r\n\r\n')
+                    self.wfile.write(request)
+                if method == 'BYE':
+                    request = (b"SIP/2.0 200 OK\r\n\r\n")
+                    self.wfile.write(request)
+                else:
+                    request = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
                     self.wfile.write(request)
 
 
