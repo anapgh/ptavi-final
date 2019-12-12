@@ -65,6 +65,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             my_socket.send(bytes(line, 'utf-8') + b'\r\n\r\n')
             data = my_socket.recv(1024)
             print('Recibido -- ', data.decode('utf-8'))
+            self.wfile.write(data)
         print("Socket terminado.")
 
     def handle(self):
