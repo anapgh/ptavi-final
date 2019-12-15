@@ -12,7 +12,7 @@ class SmallXMLHandler(ContentHandler):
     def __init__(self):
         self.dicc = {}
         self.elemDict = {
-                        "account": ["username", "pass"],
+                        "account": ["username", "passwd"],
                         "uaserver": ["ip", "puerto"],
                         "rtpaudio": ["puerto"],
                         "regproxy": ["ip","puerto"],
@@ -49,41 +49,47 @@ if __name__ == "__main__":
     config = cHandler.get_tags()
 
 # Compruebo que metodo me ha Introducido el cliente por la shell y elaboro el mensaje
-    account_username = config['account_username']
-    uaserver_puerto = config['uaserver_puerto']
-    uaserver_ip = config['uaserver_ip']
-    rtpaudio_puerto = config['rtpaudio_puerto']
+    ACCOUNT_USERNAME = config['account_username']
+    ACCOUNT_PASSWD = config['account_passwd']
+    UASERVER_IP = config['uaserver_ip']
+    UASERVER_PUERTO = config['uaserver_puerto']
+    RTPAUDIO_PUERTO = config['rtpaudio_puerto']
+    REGPROXY_IP = config['regproxy_ip']
+    REGPROXY_PUERTO = int(config['regproxy_puerto'])
+    #LOG_PATH = config['log_path']
+    #LOG_AUDIO = config['log_audio']
+
     if METHOD == 'REGISTER':
-        LINES = (METHOD + ' sip:'+ account_username + ':'+ uaserver_puerto + ' SIP/2.0 ' + 'Expires: '+ OPCION)
+        LINES = (METHOD + ' sip:'+ ACCOUNT_USERNAME + ':'+ UASERVER_PUERTO + ' SIP/2.0 ' + 'Expires: '+ OPCION)
     elif METHOD == 'INVITE':
         LINES = (METHOD + ' sip:'+ OPCION + ' SIP/2.0\r\n\r\n')
         LINES = LINES + ('Content-Type: application/sdp\r\n\r\n')
         LINES = LINES + ('v=0\r\n\r\n')
-        LINES = LINES + ('o=' + account_username + ' ' + uaserver_ip + '\r\n\r\n')
+        LINES = LINES + ('o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP + '\r\n\r\n')
         LINES = LINES + ('s=misesion\r\n\r\n')
         LINES = LINES + ('t=0\r\n\r\n')
-        LINES = LINES + ('m=' + 'audio ' + rtpaudio_puerto + ' RTP')
+        LINES = LINES + ('m=audio ' + RTPAUDIO_PUERTO  + ' RTP')
     elif METHOD == 'BYE':
         LINES = (METHOD + ' sip:' + OPCION + ' SIP/2.0')
     else:
-        print("no vale")
+        LINES = (METHOD + ' sip:' + OPCION + ' SIP/2.0')
 
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-        regproxy_ip = config['regproxy_ip']
-        regproxy_puerto = int(config['regproxy_puerto'])
-        my_socket.connect((regproxy_ip, regproxy_puerto))
+        my_socket.connect((REGPROXY_IP, REGPROXY_PUERTO))
         print("Enviando:", LINES)
         my_socket.send(bytes(LINES, 'utf-8') + b'\r\n\r\n')
         data = my_socket.recv(1024)
-        request  = data.decode('utf-8')
-        print('Recibido -- ', request)
+        reply  = data.decode('utf-8')
+        print('Recibido -- ', reply)
 
         """ Enviamos el mensaje ACK. """
-
-        if METHOD == 'INVITE':
-            request = request.split('\r\n\r\n')[2]
-            if request == 'SIP/2.0 200 OK':
-                LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
-                my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
+        try:
+            if METHOD == 'INVITE':
+                reply = reply.split('\r\n\r\n')[2]
+                if reply == 'SIP/2.0 200 OK':
+                    LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
+                    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
+        except:
+            sys.exit('')
     print("Socket terminado.")
