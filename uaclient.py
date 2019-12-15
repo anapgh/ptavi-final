@@ -6,6 +6,8 @@ import sys
 import socket
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import os
+
 
 class SmallXMLHandler(ContentHandler):
 
@@ -30,6 +32,22 @@ class SmallXMLHandler(ContentHandler):
 
     def get_tags(self):
         return(self.dicc)
+
+def send_message(request):
+    """Enviar mensajes."""
+    print("Enviando:", request)
+    my_socket.send(bytes(request, 'utf-8') + b'\r\n\r\n')
+
+
+def send_rtp(origen_ip, origen_puertortp):
+    """Enviar y escuchar el contenido multimedia mediante RTP."""
+    # aEjecutar es un string con lo que se ha de ejecutar en la shell
+    aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
+    aEjecutar += " < " + AUDIO_PATH
+    aEscuchar = 'cvlc rtp://@' + origen_ip + ':' + origen_puertortp + '>/dev/null'
+    print("Vamos a ejecutar", aEjecutar)
+    os.system(aEscuchar)
+    os.system(aEjecutar)
 
 
 if __name__ == "__main__":
@@ -57,7 +75,7 @@ if __name__ == "__main__":
     REGPROXY_IP = config['regproxy_ip']
     REGPROXY_PUERTO = int(config['regproxy_puerto'])
     #LOG_PATH = config['log_path']
-    #LOG_AUDIO = config['log_audio']
+    AUDIO_PATH = config['audio_path']
 
     if METHOD == 'REGISTER':
         LINES = (METHOD + ' sip:'+ ACCOUNT_USERNAME + ':'+ UASERVER_PUERTO + ' SIP/2.0 ' + 'Expires: '+ OPCION)
@@ -77,8 +95,8 @@ if __name__ == "__main__":
 
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         my_socket.connect((REGPROXY_IP, REGPROXY_PUERTO))
-        print("Enviando:", LINES)
         my_socket.send(bytes(LINES, 'utf-8') + b'\r\n\r\n')
+        send_message(LINES)
         data = my_socket.recv(1024)
         reply  = data.decode('utf-8')
         print('Recibido -- ', reply)
@@ -86,10 +104,15 @@ if __name__ == "__main__":
         """ Enviamos el mensaje ACK. """
         try:
             if METHOD == 'INVITE':
-                reply = reply.split('\r\n\r\n')[2]
-                if reply == 'SIP/2.0 200 OK':
+                ok = reply.split('\r\n\r\n')[2]
+                if ok == 'SIP/2.0 200 OK':
                     LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
-                    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n\r\n')
+                    send_message(LINE)
+                    sdp = reply.split('\r\n\r\n')[4].split('\r\n')
+                    origen_ip = sdp[1].split(' ')[1]
+                    origen_puertortp = sdp[4].split(' ')[1]
+                    send_rtp(origen_ip, origen_puertortp)
+
         except:
             sys.exit('')
     print("Socket terminado.")
