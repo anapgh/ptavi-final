@@ -19,8 +19,10 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     def add_user(self, sip_address, expires_value, server_puerto):
         """Add users to the dictionary. Sip address + ip + expires"""
         IP_client, Port_client = self.client_address
-        self.dict_users[sip_address] = IP_client + ' ' + str(server_puerto)\
-                                        + ' Expires: ' + str(expires_value)
+        real_time = time.strftime('%Y-%m-%d %H:%M:%S',
+                                     time.gmtime(time.time()))
+        self.dict_users[sip_address] = (IP_client, str(server_puerto),
+                                        real_time, str(expires_value))
 
 
         self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
@@ -37,7 +39,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         """Check if the users have expired, delete them of the dictionary."""
         users_list = list(self.dict_users)
         for user in users_list:
-            expires_value = self.dict_users[user].split(': ')[1]
+            expires_value = self.dict_users[user][3]
             real_time = time.strftime(
                                     '%Y-%m-%d %H:%M:%S',
                                     time.gmtime(time.time()))
@@ -57,16 +59,22 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         except FileNotFoundError:
             pass
 
-    def re_mess(self, server_puerto, line):
-        # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
+    def re_mess(self, line, user):
+        """Proxy function."""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-            my_socket.connect((server_ip, server_puerto))
-            print("Enviando:", line)
-            my_socket.send(bytes(line, 'utf-8') + b'\r\n\r\n')
-            data = my_socket.recv(1024)
-            print('Recibido -- ', data.decode('utf-8'))
-            self.wfile.write(data)
-        print("Socket terminado.")
+            print(line)
+            try:
+                server_ip = self.dict_users[user][0]
+                server_puerto = int(self.dict_users[user][1])
+                my_socket.connect((server_ip, server_puerto))
+                print("Enviando:", line)
+                my_socket.send(bytes(line, 'utf-8') + b'\r\n\r\n')
+                data = my_socket.recv(1024)
+                print('Recibido -- ', data.decode('utf-8'))
+                self.wfile.write(data)
+            except ConnectionRefusedError:
+                print('Conexion fallida con el servidor')
+            print("Socket terminado.")
 
     def handle(self):
 
@@ -92,6 +100,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
             self.wfile.write(request)
         else:
+
             if method == 'REGISTER':
                 sip_address = sip_user[1]
                 server_puerto = sip_user[2]
@@ -112,15 +121,15 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 print(self.dict_users)
                 self.register2json()
 
-            if method == 'INVITE':
+            elif method == 'INVITE' or 'BYE' or 'ACK':
                 user = sip_user[1]
-                server_puerto = int((self.dict_users[user]).split(' ')[1])
                 if user in self.dict_users:
-                    self.re_mess(server_puerto, line)
+                    self.re_mess(line, user)
                 else:
-                    self.wfile.write('SIP/2.0 404 User Not Found\r\n\r\n')
+                    self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
 
             else:
+                print('hola: ' + method +'adios')
                 request = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
                 self.wfile.write(request)
 
@@ -163,14 +172,18 @@ if __name__ == "__main__":
     parser.parse(open(CONFIG))
     config = cHandler.get_tags()
     #Cojo lo valores que me hacen falta para conectar con el cliente
-    server_ip = config['server_ip']
-    server_puerto = int(config['server_puerto'])
+    SERVER_NAME = config['server_name']
+    SERVER_IP = config['server_ip']
+    SERVER_PUERTO = int(config['server_puerto'])
+    DATABASE_PATH = config['database_path']
+    DATABASE_PASSWDPATH = config['database_passwdpath']
+    LOG_PATH = config['log_path']
 
-    proxy = socketserver.UDPServer((server_ip, server_puerto), SIPRegisterHandler)
+    proxy = socketserver.UDPServer((SERVER_IP, SERVER_PUERTO), SIPRegisterHandler)
 
-
-    print("Lanzando servidor UDP de eco...")
     try:
+        print('Server ' + SERVER_NAME + ' listening at port ' +
+              str(SERVER_PUERTO) + '...')
         proxy.serve_forever()
     except KeyboardInterrupt:
         print("Finalizado servidor")
