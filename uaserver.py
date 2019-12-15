@@ -38,52 +38,56 @@ class SmallXMLHandler(ContentHandler):
 class SIPHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
+
+    RTP_dict = {}
+
+
     def handle(self):
-
-            line = self.rfile.read()
-            line = line.decode('utf-8')
-            message_client = line.split('\r\n\r\n')
-            print(message_client)
-            cabecera = message_client[0].split(' ')
-            method = cabecera[0]
-            if method == 'INVITE': #Cojo los valores de SDP
-                origen = message_client[3].split(' ')
-                origen_username = origen[0].split('=')[1]
-                origen_ip = origen[1]
-                puerto_audio = message_client[6].split(' ')[1]
-            sip = cabecera[1].split(':')
-            opcion = sip[1]
-            sip =sip[0]
-            version = cabecera[2]
-            if sip != 'sip' or version != 'SIP/2.0':
-                request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+        line = self.rfile.read()
+        line = line.decode('utf-8')
+        message_client = line.split('\r\n\r\n')
+        print(message_client)
+        cabecera = message_client[0].split(' ')
+        method = cabecera[0]
+        sip = cabecera[1].split(':')
+        opcion = sip[1]
+        sip =sip[0]
+        version = cabecera[2]
+        if sip != 'sip' or version != 'SIP/2.0':
+            request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+            self.wfile.write(request)
+        else:
+            if method == 'INVITE':
+                request = (b'SIP/2.0 100 Trying \r\n\r\n')
+                request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
+                request = (request + b'SIP/2.0 200 OK\r\n\r\n')
                 self.wfile.write(request)
-            else:
-                if method == 'INVITE':
-                    request = (b'SIP/2.0 100 Trying \r\n\r\n')
-                    request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
-                    request = (request + b'SIP/2.0 200 OK\r\n\r\n')
-                    self.wfile.write(request)
-                    origen_ip = message_client[3].split(' ')[1]
-                    origen_puerto = message_client[6].split(' ')[1]
-                    print(origen_ip)
-                    print(origen_puerto)
-                    sdp = ('Content-Type: application/sdp\r\n\r\n' +
-                       'v=0\r\n' + 'o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP +
-                       '\r\n' + 's=session\r\n' + 't=0\r\n' +
-                       'm=audio ' + str(RTPAUDIO_PUERTO + ' RTP\r\n\r\n'))
-                    self.wfile.write(bytes(sdp, 'utf-8'))
+                origen_ip = message_client[3].split(' ')[1]
+                origen_puertortp = message_client[6].split(' ')[1]
+                self.RTP_dict['origen_username'] = (origen_ip, origen_puertortp)
+                sdp = ('Content-Type: application/sdp\r\n\r\n' +
+                   'v=0\r\n' + 'o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP +
+                   '\r\n' + 's=session\r\n' + 't=0\r\n' +
+                   'm=audio ' + str(RTPAUDIO_PUERTO + ' RTP\r\n\r\n'))
+                self.wfile.write(bytes(sdp, 'utf-8'))
 
-                if method == 'BYE':
-                    request = (b"SIP/2.0 200 OK\r\n\r\n")
-                    self.wfile.write(request)
-                if method == 'ACK':
-                    request = (b'ACK SIP/2.0')
-                    self.wfile.write(request)
-                else:
-                    print('pepe: ' + method + 'adios')
-                    request = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
-                    self.wfile.write(request)
+            elif method == 'ACK':
+                origen_ip = self.RTP_dict['origen_username'][0]
+                origen_puertortp = self.RTP_dict['origen_username'][1]
+                # aEjecutar es un string con lo que se ha de ejecutar en la shell
+                aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
+                aEjecutar += " < " + AUDIO_PATH
+                print("Vamos a ejecutar", aEjecutar)
+                os.system(aEjecutar)
+
+            elif method == 'BYE':
+                request = (b"SIP/2.0 200 OK\r\n\r\n")
+                self.wfile.write(request)
+
+
+            else:
+                request = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
+                self.wfile.write(request)
 
 
 
@@ -109,13 +113,14 @@ if __name__ == "__main__":
     REGPROXY_IP = config['regproxy_ip']
     REGPROXY_PUERTO = int(config['regproxy_puerto'])
     #LOG_PATH = config['log_path']
-    #LOG_AUDIO = config['log_audio']
+    AUDIO_PATH = config['audio_path']
 
 
     proxy = socketserver.UDPServer((UASERVER_IP, UASERVER_PUERTO), SIPHandler)
 
-    print("Lanzando servidor UDP de eco...")
     try:
+        print('Server ' + ACCOUNT_USERNAME + ' listening at port ' +
+              str(UASERVER_PUERTO) + '...')
         proxy.serve_forever()
     except KeyboardInterrupt:
         print("Finalizado servidor")
