@@ -54,7 +54,7 @@ class SIPHandler(socketserver.DatagramRequestHandler):
                 origen_puertortp = self.RTP_dict['origen_usernam'][1]
                 # aEjecutar es un string para ejecutar en la shell
                 aEjecutar = ("./mp32rtp -i " + origen_ip + " -p ")
-                aEjecutar += (origen_puertortp " < " + AUDIO_PATH)
+                aEjecutar += (origen_puertortp + " < " + AUDIO_PATH)
                 print("Vamos a ejecutar", aEjecutar)
                 log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
                 os.system(aEjecutar)
