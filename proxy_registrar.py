@@ -14,17 +14,17 @@ from uaclient import log_file
 
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
-    """Echo server class."""
+    """Server class."""
 
     dict_users = {}
     dict_passwd = {}
     dict_nonce = {}
 
     def add_user(self, sip_address, expires_value, server_puerto):
-        """Add users to the dictionary. Sip address + ip + real time + expires."""
+        """Add users to the dictionary."""
         IP_client, Port_client = self.client_address
         real_time = time.strftime('%Y-%m-%d %H:%M:%S',
-                                     time.gmtime(time.time()))
+                                  time.gmtime(time.time()))
         self.dict_users[sip_address] = (IP_client, str(server_puerto),
                                         real_time, str(expires_value))
 
@@ -34,17 +34,18 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
         print(self.dict_users)
 
-
     def delete_user(self, sip_address):
         """Delete users to the dictionary."""
         IP_client, Port_client = self.client_address
         try:
             del self.dict_users[sip_address]
             self.register2json()
-            self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+            reply = (b'SIP/2.0 200 OK\r\n\r\n')
+            self.wfile.write(reply)
             log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
         except KeyError:
             self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
+        print(self.dict_users)
 
     def expires_users(self):
         """Check if the users have expired, delete them of the dictionary."""
@@ -59,6 +60,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
 
     def register2json(self):
         """Create a .json file."""
+        self.expires_users()
         with open('registered.json', "w") as json_file:
             json.dump(self.dict_users, json_file, indent=4)
 
@@ -70,12 +72,11 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         except FileNotFoundError:
             pass
 
-
     def json2passwd(self):
         """Read .json file with the password of clients."""
         try:
             with open(DATABASE_PASSWDPATH, 'r') as json_file:
-                self.dict_passwd= json.load(json_file)
+                self.dict_passwd = json.load(json_file)
         except FileNotFoundError:
             pass
 
@@ -109,65 +110,66 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             digest = h.hexdigest()
         return digest
 
-
     def handle(self):
+        """Proxy handler."""
         self.json2registered()
         self.json2passwd()
         self.expires_users()
         line = self.rfile.read()
         line = line.decode('utf-8')
         message_client = line.split('\r\n\r\n')
-        print(message_client)
         cabecera = message_client[0].split(' ')
         method = cabecera[0]
         sip_user = cabecera[1].split(':')
         sip = sip_user[0]
         version = cabecera[2]
         IP_client, Port_client = self.client_address
-        log.log_received(IP_client, Port_client,
-                     line)
+        log.log_received(IP_client, Port_client, line)
         if sip != 'sip' or version != 'SIP/2.0':
             reply = (b"SIP/2.0 400 Bad Request\r\n\r\n")
             self.wfile.write(reply)
-            log.log_senting(IP_client, Port_client,reply.decode('utf-8'))
+            log.log_senting(IP_client, Port_client, reply.decode('utf-8'))
         else:
             if method == 'REGISTER':
                 sip_address = sip_user[1]
                 server_puerto = sip_user[2]
                 if len(message_client) == 2:
-                    if sip_address in self.dict_nonce:
-                        nonce = self.dict_nonce
-                    else:
-                        nonce = random.randint(10**19, 10**20)
-                        self.dict_nonce[sip_address] = nonce
+                    nonce = random.randint(10**19, 10**20)
+                    self.dict_nonce[sip_address] = nonce
                     reply = (b'SIP/2.0 401 Unauthorized\r\n\r\n')
                     reply += (b'WWW Authenticate: Digest nonce="')
                     reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
                     self.wfile.write(reply)
-                    log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
+                    log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
                 elif len(message_client) == 3:
                     sip_digest = message_client[1].split('"')[1]
                     digest = self.get_digest(sip_address)
-                    if sip_digest == digest :
+                    if sip_address in self.dict_nonce:
+                        nonce = self.dict_nonce
+                    if sip_digest == digest:
                         try:
                             expires_value = int(cabecera[4])
+                            print(expires_value)
                         except ValueError:
                             self.wfile.write(b"SIP/2.0 400 error\r\n")
                         if expires_value == 0:
                             self.delete_user(sip_address)
+                            print(self.dict_users)
                         elif expires_value > 0:
                             expires_value = expires_value + time.time()
-                            expires_value = time.strftime(
-                                                        '%Y-%m-%d %H:%M:%S',
-                                                        time.gmtime(expires_value))
-                            self.add_user(sip_address, expires_value, server_puerto)
+                            gmtime = (time.gmtime(expires_value))
+                            expires_value = time.strftime('%Y-%m-%d %H:%M:%S',
+                                                          gmtime)
+                            self.add_user(sip_address, expires_value,
+                                          server_puerto)
                     else:
                         reply = (b'SIP/2.0 401 Unauthorized\r\n\r\n')
                         reply += (b'WWW Authenticate: Digest nonce="')
-                        reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
+                        reply += ((bytes(str(nonce) + '"', 'utf-8')) +
+                                  b'\r\n\r\n')
                         self.wfile.write(reply)
                         log.log_sent(IP_client, Port_client,
-                                        reply.decode('utf-8'))
+                                     reply.decode('utf-8'))
             elif method == 'INVITE' or 'BYE' or 'ACK':
                 user = sip_user[1]
                 if user in self.dict_users:
@@ -175,16 +177,18 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 else:
                     reply = (b'SIP/2.0 404 User Not Found\r\n\r\n')
                     self.wfile.write(reply)
-                    log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
+                    log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
             else:
                 reply = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
                 self.wfile.write(reply)
-                log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
+                log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
 
 
 class SmallXMLHandler(ContentHandler):
+    """Class to read .xml file."""
 
     def __init__(self):
+        """ Tag diccionary."""
         self.dicc = {}
         self.elemDict = {
                         "server": ["name", "ip", "puerto"],
@@ -194,14 +198,13 @@ class SmallXMLHandler(ContentHandler):
                         }
 
     def startElement(self, name, attrs):
-        """
-        Método que se llama cuando se abre una etiqueta
-        """
+        """ Method to open tag."""
         if name in self.elemDict:
             for atributo in self.elemDict[name]:
-                self.dicc[name +'_'+ atributo] = attrs.get(atributo, "")
+                self.dicc[name + '_' + atributo] = attrs.get(atributo, "")
 
     def get_tags(self):
+        """ Method to return tag value. """
         return(self.dicc)
 
 
@@ -218,15 +221,19 @@ if __name__ == "__main__":
     parser.setContentHandler(cHandler)
     parser.parse(open(CONFIG))
     config = cHandler.get_tags()
-    #Cojo lo valores que me hacen falta para conectar con el cliente
+    # Cojo lo valores que me hacen falta para conectar con el cliente
     SERVER_NAME = config['server_name']
     SERVER_IP = config['server_ip']
     SERVER_PUERTO = int(config['server_puerto'])
     DATABASE_PATH = config['database_path']
     DATABASE_PASSWDPATH = config['database_passwdpath']
     LOG_PATH = config['log_path']
+
+    # Creo el log
     log = log_file()
-    proxy = socketserver.UDPServer((SERVER_IP, SERVER_PUERTO), SIPRegisterHandler)
+
+    proxy = socketserver.UDPServer((SERVER_IP, SERVER_PUERTO),
+                                   SIPRegisterHandler)
 
     try:
         print('Server ' + SERVER_NAME + ' listening at port ' +
