@@ -1,7 +1,5 @@
 #!/usr/bin/python3
-"""
-Clase (y programa principal) para un servidor de eco en UDP simple
-"""
+"""Programa para un servidor de eco en UDP simple."""
 
 import socketserver
 import socket
@@ -10,27 +8,36 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 import time
 import json
+import random
+import hashlib
+
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
     dict_users = {}
+    dict_passwd = {}
+    dict_nonce = {}
 
     def add_user(self, sip_address, expires_value, server_puerto):
-        """Add users to the dictionary. Sip address + ip + expires"""
+        """Add users to the dictionary. Sip address + ip + real time + expires."""
         IP_client, Port_client = self.client_address
         real_time = time.strftime('%Y-%m-%d %H:%M:%S',
                                      time.gmtime(time.time()))
         self.dict_users[sip_address] = (IP_client, str(server_puerto),
                                         real_time, str(expires_value))
 
+        self.register2json()
+        reply = (b"SIP/2.0 200 OK\r\n\r\n")
+        self.wfile.write(reply)
+        print(self.dict_users)
 
-        self.wfile.write(b"SIP/2.0 200 OK\r\n\r\n")
 
     def delete_user(self, sip_address):
         """Delete users to the dictionary."""
         try:
             del self.dict_users[sip_address]
+            self.register2json()
             self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
         except KeyError:
             self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
@@ -47,25 +54,33 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 del self.dict_users[user]
 
     def register2json(self):
-        """Create a .json file"""
+        """Create a .json file."""
         with open('registered.json', "w") as json_file:
             json.dump(self.dict_users, json_file, indent=4)
 
     def json2registered(self):
-        """if there is an .json file read from it"""
+        """if there is an .json file read from it."""
         try:
             with open('registered.json', 'r') as json_file:
                 self.dict_users = json.load(json_file)
         except FileNotFoundError:
             pass
 
+
+    def json2passwd(self):
+        """Read .json file with the password of clients."""
+        try:
+            with open(DATABASE_PASSWDPATH, 'r') as json_file:
+                self.dict_passwd= json.load(json_file)
+        except FileNotFoundError:
+            pass
+
     def re_mess(self, line, user):
         """Proxy function."""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-            print(line)
+            server_ip = self.dict_users[user][0]
+            server_puerto = int(self.dict_users[user][1])
             try:
-                server_ip = self.dict_users[user][0]
-                server_puerto = int(self.dict_users[user][1])
                 my_socket.connect((server_ip, server_puerto))
                 print("Enviando:", line)
                 my_socket.send(bytes(line, 'utf-8') + b'\r\n\r\n')
@@ -76,9 +91,23 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 print('Conexion fallida con el servidor')
             print("Socket terminado.")
 
+    def get_digest(self, user):
+        """Get the digest with the passwords of dictionary."""
+        digest = 0
+        nonce = str(self.dict_nonce[user])
+        if user in self.dict_passwd:
+            passwd = self.dict_passwd[user]
+            passwd = passwd[0]
+            h = hashlib.md5(bytes(str(passwd) + '\r\n', 'utf-8'))
+            h.update(bytes(nonce, 'utf-8'))
+            digest = h.hexdigest()
+        return digest
+
+
     def handle(self):
 
         self.json2registered()
+        self.json2passwd()
         self.expires_users()
         line = self.rfile.read()
         line = line.decode('utf-8')
@@ -86,40 +115,49 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         print(message_client)
         cabecera = message_client[0].split(' ')
         method = cabecera[0]
-
-        if method == 'INVITE': #Cojo los valores de SDP
-            origen = message_client[3].split(' ')
-            origen_username = origen[0].split('=')[1]
-            origen_ip = origen[1]
-            puerto_audio = message_client[6].split(' ')[1]
-
         sip_user = cabecera[1].split(':')
         sip = sip_user[0]
         version = cabecera[2]
         if sip != 'sip' or version != 'SIP/2.0':
-            request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
-            self.wfile.write(request)
+            reply = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+            self.wfile.write(reply)
         else:
-
             if method == 'REGISTER':
                 sip_address = sip_user[1]
                 server_puerto = sip_user[2]
-                try:
-                    expires_value = int(cabecera[4])
-                except ValueError:
-                    self.wfile.write(b"SIP/2.0 400 error\r\n")
-                if expires_value == 0:
-                    self.delete_user(sip_address)
-                elif expires_value > 0:
-                    expires_value = expires_value + time.time()
-                    expires_value = time.strftime(
-                                                '%Y-%m-%d %H:%M:%S',
-                                                time.gmtime(expires_value))
-                    self.add_user(sip_address, expires_value, server_puerto)
-                    request = request = (b"SIP/2.0 200 OK\r\n\r\n")
-                    self.wfile.write(request)
-                print(self.dict_users)
-                self.register2json()
+                if len(message_client) == 2:
+                    if sip_address in self.dict_nonce:
+                        nonce = self.dict_nonce
+                    else:
+                        nonce = random.randint(10**19, 10**20)
+                        self.dict_nonce[sip_address] = nonce
+                    reply = (b'SIP/2.0 401 Unauthorized\r\n\r\n')
+                    reply += (b'WWW Authenticate: Digest nonce="')
+                    reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
+                    self.wfile.write(reply)
+                elif len(message_client) == 3:
+                    sip_digest = message_client[1].split('"')[1]
+                    digest = self.get_digest(sip_address)
+                    if sip_digest == digest :
+                        try:
+                            expires_value = int(cabecera[4])
+                        except ValueError:
+                            self.wfile.write(b"SIP/2.0 400 error\r\n")
+                        if expires_value == 0:
+                            self.delete_user(sip_address)
+                        elif expires_value > 0:
+                            expires_value = expires_value + time.time()
+                            expires_value = time.strftime(
+                                                        '%Y-%m-%d %H:%M:%S',
+                                                        time.gmtime(expires_value))
+                            self.add_user(sip_address, expires_value, server_puerto)
+                    else:
+                        reply = (b'SIP/2.0 401 Unauthorized\r\n\r\n')
+                        reply += (b'WWW Authenticate: Digest nonce="')
+                        reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
+                        self.wfile.write(reply)
+                        
+
 
             elif method == 'INVITE' or 'BYE' or 'ACK':
                 user = sip_user[1]
@@ -129,9 +167,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
 
             else:
-                print('hola: ' + method +'adios')
-                request = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
-                self.wfile.write(request)
+                reply = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
+                self.wfile.write(reply)
 
 
 
