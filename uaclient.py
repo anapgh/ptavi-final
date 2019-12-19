@@ -192,16 +192,18 @@ if __name__ == "__main__":
             log.log_received(REGPROXY_IP, REGPROXY_PUERTO, reply)
         # Enviamos el mensaje ACK.
         elif METHOD == 'INVITE':
-            if reply.split('\r\n\r\n')[0] == 'SIP/2.0 100 Trying':
-                if reply.split('\r\n\r\n')[1] == 'SIP/2.0 180 Ringing':
-                    if reply.split('\r\n\r\n')[2] == 'SIP/2.0 200 OK':
-                        LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
-                        send_message(LINE)
-                        # Del sdp de la otra maquina sacamos su ip y su puerto
-                        sdp = reply.split('\r\n\r\n')[4].split('\r\n')
-                        origen_ip = sdp[1].split(' ')[1]
-                        origen_puertortp = sdp[4].split(' ')[1]
-                        # Hago el envio de multimedia por RTP
-                        send_rtp(origen_ip, origen_puertortp)
+            try:
+                if reply.split('\r\n\r\n')[2] == 'SIP/2.0 200 OK':
+                    LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
+                    send_message(LINE)
+                    # Del sdp de la otra maquina sacamos su ip y su puerto
+                    sdp = reply.split('\r\n\r\n')[4].split('\r\n')
+                    origen_ip = sdp[1].split(' ')[1]
+                    origen_puertortp = sdp[4].split(' ')[1]
+                    # Hago el envio de multimedia por RTP
+                    send_rtp(origen_ip, origen_puertortp)
+            except:
+                sys.exit('')
+
 
     print("Socket terminado.")
