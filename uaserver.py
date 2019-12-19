@@ -7,10 +7,10 @@ import sys
 import os
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+from uaclient import log_file
 
 
 class SmallXMLHandler(ContentHandler):
-
 
     def __init__(self):
         self.dicc = {}
@@ -38,9 +38,7 @@ class SmallXMLHandler(ContentHandler):
 class SIPHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
 
-
     RTP_dict = {}
-
 
     def handle(self):
         line = self.rfile.read()
@@ -53,23 +51,29 @@ class SIPHandler(socketserver.DatagramRequestHandler):
         opcion = sip[1]
         sip =sip[0]
         version = cabecera[2]
+        IP_client, Port_client = self.client_address
+        log.log_received(IP_client, Port_client,
+                     line)
         if sip != 'sip' or version != 'SIP/2.0':
-            request = (b"SIP/2.0 400 Bad Request\r\n\r\n")
-            self.wfile.write(request)
+            reply = (b"SIP/2.0 400 Bad Request\r\n\r\n")
+            self.wfile.write(reply)
         else:
             if method == 'INVITE':
-                request = (b'SIP/2.0 100 Trying \r\n\r\n')
-                request = (request + b'SIP/2.0 180 Ringing\r\n\r\n')
-                request = (request + b'SIP/2.0 200 OK\r\n\r\n')
-                self.wfile.write(request)
-                origen_ip = message_client[3].split(' ')[1]
-                origen_puertortp = message_client[6].split(' ')[1]
+                reply = (b'SIP/2.0 100 Trying \r\n\r\n')
+                reply = (reply + b'SIP/2.0 180 Ringing\r\n\r\n')
+                reply = (reply + b'SIP/2.0 200 OK\r\n\r\n')
+                self.wfile.write(reply)
+                log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
+                content = message_client[2].split('\r\n')
+                origen_ip = content[1].split(' ')[1]
+                origen_puertortp = content[4].split(' ')[1]
                 self.RTP_dict['origen_username'] = (origen_ip, origen_puertortp)
                 sdp = ('Content-Type: application/sdp\r\n\r\n' +
                    'v=0\r\n' + 'o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP +
                    '\r\n' + 's=session\r\n' + 't=0\r\n' +
                    'm=audio ' + str(RTPAUDIO_PUERTO + ' RTP\r\n\r\n'))
                 self.wfile.write(bytes(sdp, 'utf-8'))
+                log.log_sent(IP_client, Port_client, sdp)
 
             elif method == 'ACK':
                 origen_ip = self.RTP_dict['origen_username'][0]
@@ -78,16 +82,18 @@ class SIPHandler(socketserver.DatagramRequestHandler):
                 aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
                 aEjecutar += " < " + AUDIO_PATH
                 print("Vamos a ejecutar", aEjecutar)
+                log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
                 os.system(aEjecutar)
 
             elif method == 'BYE':
-                request = (b"SIP/2.0 200 OK\r\n\r\n")
-                self.wfile.write(request)
-
+                reply = (b"SIP/2.0 200 OK\r\n\r\n")
+                self.wfile.write(reply)
+                log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
 
             else:
-                request = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
-                self.wfile.write(request)
+                reply = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
+                self.wfile.write(reply)
+                log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
 
 
 
@@ -112,15 +118,20 @@ if __name__ == "__main__":
     RTPAUDIO_PUERTO = config['rtpaudio_puerto']
     REGPROXY_IP = config['regproxy_ip']
     REGPROXY_PUERTO = int(config['regproxy_puerto'])
-    #LOG_PATH = config['log_path']
+    LOG_PATH = config['log_path']
     AUDIO_PATH = config['audio_path']
 
+    # Creo el objeto de la clase log, para escribir en el fichero
+    log = log_file()
 
-    proxy = socketserver.UDPServer((UASERVER_IP, UASERVER_PUERTO), SIPHandler)
+    server = socketserver.UDPServer((UASERVER_IP, UASERVER_PUERTO), SIPHandler)
 
     try:
-        print('Server ' + ACCOUNT_USERNAME + ' listening at port ' +
-              str(UASERVER_PUERTO) + '...')
-        proxy.serve_forever()
+        print('Listening...')
+        estado = 'start'
+        log.log_start_finish(estado)
+        server.serve_forever()
     except KeyboardInterrupt:
+        estado = 'finish'
+        log.log_start_finish(estado)
         print("Finalizado servidor")
