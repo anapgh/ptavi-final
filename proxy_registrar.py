@@ -10,6 +10,7 @@ import time
 import json
 import random
 import hashlib
+from uaclient import log_file
 
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
@@ -30,15 +31,18 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         self.register2json()
         reply = (b"SIP/2.0 200 OK\r\n\r\n")
         self.wfile.write(reply)
+        log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
         print(self.dict_users)
 
 
     def delete_user(self, sip_address):
         """Delete users to the dictionary."""
+        IP_client, Port_client = self.client_address
         try:
             del self.dict_users[sip_address]
             self.register2json()
             self.wfile.write(b'SIP/2.0 200 OK\r\n\r\n')
+            log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
         except KeyError:
             self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
 
@@ -89,6 +93,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 self.wfile.write(data)
             except ConnectionRefusedError:
                 print('Conexion fallida con el servidor')
+                log.conexion_refused_error(server_ip, server_puerto)
+
             print("Socket terminado.")
 
     def get_digest(self, user):
@@ -105,7 +111,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
 
 
     def handle(self):
-
         self.json2registered()
         self.json2passwd()
         self.expires_users()
@@ -118,9 +123,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         sip_user = cabecera[1].split(':')
         sip = sip_user[0]
         version = cabecera[2]
+        IP_client, Port_client = self.client_address
+        log.log_received(IP_client, Port_client,
+                     line)
         if sip != 'sip' or version != 'SIP/2.0':
             reply = (b"SIP/2.0 400 Bad Request\r\n\r\n")
             self.wfile.write(reply)
+            log.log_senting(IP_client, Port_client,reply.decode('utf-8'))
         else:
             if method == 'REGISTER':
                 sip_address = sip_user[1]
@@ -135,6 +144,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     reply += (b'WWW Authenticate: Digest nonce="')
                     reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
                     self.wfile.write(reply)
+                    log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
                 elif len(message_client) == 3:
                     sip_digest = message_client[1].split('"')[1]
                     digest = self.get_digest(sip_address)
@@ -156,20 +166,20 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         reply += (b'WWW Authenticate: Digest nonce="')
                         reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
                         self.wfile.write(reply)
-                        
-
-
+                        log.log_sent(IP_client, Port_client,
+                                        reply.decode('utf-8'))
             elif method == 'INVITE' or 'BYE' or 'ACK':
                 user = sip_user[1]
                 if user in self.dict_users:
                     self.re_mess(line, user)
                 else:
-                    self.wfile.write(b'SIP/2.0 404 User Not Found\r\n\r\n')
-
+                    reply = (b'SIP/2.0 404 User Not Found\r\n\r\n')
+                    self.wfile.write(reply)
+                    log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
             else:
                 reply = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
                 self.wfile.write(reply)
-
+                log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
 
 
 class SmallXMLHandler(ContentHandler):
@@ -215,12 +225,16 @@ if __name__ == "__main__":
     DATABASE_PATH = config['database_path']
     DATABASE_PASSWDPATH = config['database_passwdpath']
     LOG_PATH = config['log_path']
-
+    log = log_file()
     proxy = socketserver.UDPServer((SERVER_IP, SERVER_PUERTO), SIPRegisterHandler)
 
     try:
         print('Server ' + SERVER_NAME + ' listening at port ' +
               str(SERVER_PUERTO) + '...')
+        estado = 'start'
+        log.log_start_finish(estado)
         proxy.serve_forever()
     except KeyboardInterrupt:
+        estado = 'finish'
+        log.log_start_finish(estado)
         print("Finalizado servidor")
