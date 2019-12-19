@@ -7,32 +7,7 @@ import sys
 import os
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from uaclient import log_file
-
-
-class SmallXMLHandler(ContentHandler):
-
-    def __init__(self):
-        self.dicc = {}
-        self.elemDict = {
-                        "account": ["username", "passwd"],
-                        "uaserver": ["ip", "puerto"],
-                        "rtpaudio": ["puerto"],
-                        "regproxy": ["ip","puerto"],
-                        "log": ["path"],
-                        "audio": ["path"]
-                        }
-
-    def startElement(self, name, attrs):
-        """
-        Método que se llama cuando se abre una etiqueta
-        """
-        if name in self.elemDict:
-            for atributo in self.elemDict[name]:
-                self.dicc[name +'_'+ atributo] = attrs.get(atributo, "")
-
-    def get_tags(self):
-        return(self.dicc)
+from uaclient import log_file, SmallXMLHandler
 
 
 class SIPHandler(socketserver.DatagramRequestHandler):
@@ -94,7 +69,6 @@ class SIPHandler(socketserver.DatagramRequestHandler):
                 reply = (b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
                 self.wfile.write(reply)
                 log.log_sent(IP_client, Port_client,reply.decode('utf-8'))
-
 
 
 if __name__ == "__main__":
