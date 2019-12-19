@@ -1,7 +1,5 @@
 #!/usr/bin/python3
-"""
-Programa cliente UDP que abre un socket a un servidor
-"""
+"""Programa cliente UDP que abre un socket a un servidor."""
 import sys
 import socket
 from xml.sax import make_parser
@@ -15,6 +13,7 @@ class log_file():
     """Class to write in log file."""
 
     def __init__(self):
+        """Import LOG_PATH of main."""
         from __main__ import LOG_PATH as log
         self.log = log
 
@@ -70,8 +69,10 @@ class log_file():
 
 
 class SmallXMLHandler(ContentHandler):
+    """Class to read .xml file."""
 
     def __init__(self):
+        """ Tag diccionary."""
         self.dicc = {}
         self.elemDict = {
                         "account": ["username", "passwd"],
@@ -83,18 +84,17 @@ class SmallXMLHandler(ContentHandler):
                         }
 
     def startElement(self, name, attrs):
-        """
-        Método que se llama cuando se abre una etiqueta
-        """
+        """ Method to open tag."""
         if name in self.elemDict:
             for atributo in self.elemDict[name]:
                 self.dicc[name +'_'+ atributo] = attrs.get(atributo, "")
 
     def get_tags(self):
+        """ Method to return tag value. """
         return(self.dicc)
 
 def send_message(reply):
-    """Enviar mensajes."""
+    """Send messages."""
     print("Enviando:", reply)
     my_socket.send(bytes(reply, 'utf-8') + b'\r\n\r\n')
     log.log_sent(REGPROXY_IP, REGPROXY_PUERTO, reply)
@@ -102,7 +102,7 @@ def send_message(reply):
 
 
 def send_rtp(origen_ip, origen_puertortp):
-    """Enviar y escuchar el contenido multimedia mediante RTP."""
+    """ Send multimedia content by RTP."""
     # aEjecutar es un string con lo que se ha de ejecutar en la shell
     aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
     aEjecutar += " < " + AUDIO_PATH
@@ -112,7 +112,7 @@ def send_rtp(origen_ip, origen_puertortp):
 
 
 if __name__ == "__main__":
-# Constantes. Fichero xml, metodo a usar y opcion de cada metodo
+    #Constantes. Fichero xml, metodo a usar y opcion de cada metodo
     try:
         CONFIG = sys.argv[1]
         METHOD  = sys.argv[2]
@@ -120,14 +120,14 @@ if __name__ == "__main__":
     except (IndexError, ValueError):
         sys.exit('Usage: client.py config method opcion ')
 
-# Con el manejador, creo un diccionario 'config' con el fichero xml
+    #Con el manejador, creo un diccionario 'config' con el fichero xml
     parser = make_parser()
     cHandler = SmallXMLHandler()
     parser.setContentHandler(cHandler)
     parser.parse(open(CONFIG))
     config = cHandler.get_tags()
 
-# Compruebo que metodo me ha Introducido el cliente por la shell y elaboro el mensaje
+    #Compruebo que metodo me ha Introducido el cliente por la shell y elaboro el mensaje
     ACCOUNT_USERNAME = config['account_username']
     ACCOUNT_PASSWD = config['account_passwd']
     UASERVER_IP = config['uaserver_ip']
@@ -138,12 +138,12 @@ if __name__ == "__main__":
     LOG_PATH = config['log_path']
     AUDIO_PATH = config['audio_path']
 
-# Creo el log
+    #Creo el log
     log = log_file()
     estado = 'start'
     log.log_start_finish(estado)
 
-# Envio los mensajes segun el metodo
+    #Envio los mensajes segun el metodo
     if METHOD == 'REGISTER':
         LINES = (METHOD + ' sip:'+ ACCOUNT_USERNAME + ':'+ UASERVER_PUERTO + ' SIP/2.0 ' + 'Expires: '+ OPCION)
     elif METHOD == 'INVITE':
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     else:
         LINES = (METHOD + ' sip:' + OPCION + ' SIP/2.0')
 
-# Conecto con el servidor
+    #Conecto con el servidor
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         try:
             my_socket.connect((REGPROXY_IP, REGPROXY_PUERTO))
@@ -174,7 +174,7 @@ if __name__ == "__main__":
             sys.exit('Error: No server listening at ' + REGPROXY_IP +
                      ' port ' + str(REGPROXY_PUERTO))
 
-        # Enviamos la autorización al proxy registrar.
+        #Enviamos la autorización al proxy registrar.
         if reply.split('\r\n\r\n')[0] == 'SIP/2.0 401 Unauthorized':
             authenticate = reply.split('\r\n\r\n')[1]
             nonce = authenticate.split('"')[1]
@@ -188,17 +188,19 @@ if __name__ == "__main__":
             data = my_socket.recv(1024)
             reply = data.decode('utf-8')
             log.log_received(REGPROXY_IP, REGPROXY_PUERTO, reply)
-        # Enviamos el mensaje ACK.
+        #Enviamos el mensaje ACK.
         elif METHOD == 'INVITE':
-            if reply.split('\r\n\r\n')[2] == 'SIP/2.0 200 OK':
-                LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
-                send_message(LINE)
-                # Del sdp de la otra maquina sacamos su ip y su puerto
-                sdp = reply.split('\r\n\r\n')[4].split('\r\n')
-                origen_ip = sdp[1].split(' ')[1]
-                origen_puertortp = sdp[4].split(' ')[1]
-                # Hago el envio de multimedia por RTP
-                send_rtp(origen_ip, origen_puertortp)
+            if reply.split('\r\n\r\n')[0] == 'SIP/2.0 100 Trying':
+                if reply.split('\r\n\r\n')[1] == 'SIP/2.0 180 Ringing':
+                    if reply.split('\r\n\r\n')[2] == 'SIP/2.0 200 OK':
+                        LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
+                        send_message(LINE)
+                        #Del sdp de la otra maquina sacamos su ip y su puerto
+                        sdp = reply.split('\r\n\r\n')[4].split('\r\n')
+                        origen_ip = sdp[1].split(' ')[1]
+                        origen_puertortp = sdp[4].split(' ')[1]
+                        #Hago el envio de multimedia por RTP
+                        send_rtp(origen_ip, origen_puertortp)
 
 
     print("Socket terminado.")
