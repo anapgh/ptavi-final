@@ -51,12 +51,12 @@ class SIPHandler(socketserver.DatagramRequestHandler):
 
             elif method == 'ACK':
                 origen_ip = self.RTP_dict['origen_usernam'][0]
-                origen_puertortp = self.RTP_dict['origen_usernam'][1]
+                o_puertortp = self.RTP_dict['origen_usernam'][1]
                 # aEjecutar es un string para ejecutar en la shell
-                aEjecutar = ("./mp32rtp -i " + origen_ip + " -p ")
-                aEjecutar += (origen_puertortp + " < " + AUDIO_PATH)
+                aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + o_puertortp
+                aEjecutar += " < " + AUDIO_PATH
                 print("Vamos a ejecutar", aEjecutar)
-                log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
+                log.log_rtp(origen_ip, o_puertortp, AUDIO_PATH)
                 os.system(aEjecutar)
 
             elif method == 'BYE':
