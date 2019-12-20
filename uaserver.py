@@ -16,6 +16,7 @@ class SIPHandler(socketserver.DatagramRequestHandler):
     RTP_dict = {}
 
     def handle(self):
+        """Server handler."""
         line = self.rfile.read()
         line = line.decode('utf-8')
         message_client = line.split('\r\n\r\n')
