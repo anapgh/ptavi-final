@@ -146,9 +146,9 @@ if __name__ == "__main__":
     # Envio los mensajes segun el metodo
     if METHOD == 'REGISTER':
         LINES = (METHOD + ' sip:' + ACCOUNT_USERNAME + ':' + UASERVER_PUERTO +
-                 ' SIP/2.0 ' + 'Expires: ' + OPCION)
+                 ' SIP/2.0\r\n' + 'Expires: ' + OPCION)
     elif METHOD == 'INVITE':
-        LINES = (METHOD + ' sip:' + OPCION + ' SIP/2.0\r\n\r\n')
+        LINES = (METHOD + ' sip:' + OPCION + ' SIP/2.0\r\n')
         LINES = LINES + ('Content-Type: application/sdp\r\n\r\n')
         LINES = LINES + ('v=0\r\n')
         LINES = LINES + ('o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP + '\r\n')
@@ -176,15 +176,15 @@ if __name__ == "__main__":
                      ' port ' + str(REGPROXY_PUERTO))
 
         # Enviamos la autorización al proxy registrar.
-        if reply.split('\r\n\r\n')[0] == 'SIP/2.0 401 Unauthorized':
-            authenticate = reply.split('\r\n\r\n')[1]
+        if reply.split('\r\n')[0] == 'SIP/2.0 401 Unauthorized':
+            authenticate = reply.split('\r\n')[1]
             nonce = authenticate.split('"')[1]
             h = hashlib.md5(bytes(ACCOUNT_PASSWD + '\r\n', 'utf-8'))
             h.update(bytes(nonce, 'utf-8'))
             digest = h.hexdigest()
             LINE = (METHOD + ' sip:' + ACCOUNT_USERNAME + ':' +
-                    UASERVER_PUERTO + ' SIP/2.0 ' + 'Expires: ' + OPCION +
-                    '\r\n\r\n')
+                    UASERVER_PUERTO + ' SIP/2.0\r\n' + 'Expires: ' + OPCION +
+                    '\r\n')
             LINE += ('Authorization: Digest response="' + digest + '"')
             send_message(LINE)
             data = my_socket.recv(1024)
@@ -193,11 +193,12 @@ if __name__ == "__main__":
         # Enviamos el mensaje ACK.
         elif METHOD == 'INVITE':
             try:
-                if reply.split('\r\n\r\n')[2] == 'SIP/2.0 200 OK':
+                ok = 'SIP/2.0 200 OK'
+                if reply.split('\r\n\r\n')[2].split('\r\n')[0] == ok:
                     LINE = ('ACK' + ' sip:' + OPCION + ' SIP/2.0')
                     send_message(LINE)
                     # Del sdp de la otra maquina sacamos su ip y su puerto
-                    sdp = reply.split('\r\n\r\n')[4].split('\r\n')
+                    sdp = reply.split('\r\n\r\n')[3].split('\r\n')
                     origen_ip = sdp[1].split(' ')[1]
                     origen_puertortp = sdp[4].split(' ')[1]
                     # Hago el envio de multimedia por RTP
