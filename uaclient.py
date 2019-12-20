@@ -23,7 +23,7 @@ class log_file():
             file_log.write(mess)
 
     def log_start_finish(self, estado):
-        """Write in log file 'Starting' or 'Finishing' """
+        """Write in log file 'Starting' or 'Finishing'."""
         real_time = time.strftime('%Y-%m-%d %H:%M:%S',
                                   time.gmtime(time.time()))
         if estado == 'start':
@@ -52,7 +52,7 @@ class log_file():
         self.write_log(mess)
 
     def log_rtp(self, ip, port, audio):
-        """Write in log file for send rtp audio"""
+        """Write in log file for send rtp audio."""
         real_time = time.strftime('%Y-%m-%d %H:%M:%S',
                                   time.gmtime(time.time()))
         mess = (real_time + ' Senting to ' + ip + ':' + str(port) +
@@ -72,7 +72,7 @@ class SmallXMLHandler(ContentHandler):
     """Class to read .xml file."""
 
     def __init__(self):
-        """ Tag diccionary."""
+        """Tag diccionary."""
         self.dicc = {}
         self.elemDict = {
                         "account": ["username", "passwd"],
@@ -84,13 +84,13 @@ class SmallXMLHandler(ContentHandler):
                         }
 
     def startElement(self, name, attrs):
-        """ Method to open tag."""
+        """Method to open tag."""
         if name in self.elemDict:
             for atributo in self.elemDict[name]:
                 self.dicc[name + '_' + atributo] = attrs.get(atributo, "")
 
     def get_tags(self):
-        """ Method to return tag value. """
+        """Method to return tag value."""
         return(self.dicc)
 
 
@@ -102,7 +102,7 @@ def send_message(reply):
 
 
 def send_rtp(origen_ip, origen_puertortp):
-    """ Send multimedia content by RTP."""
+    """Send multimedia content by RTP."""
     # aEjecutar es un string con lo que se ha de ejecutar en la shell
     aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
     aEjecutar += " < " + AUDIO_PATH
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                     origen_puertortp = sdp[4].split(' ')[1]
                     # Hago el envio de multimedia por RTP
                     send_rtp(origen_ip, origen_puertortp)
-            except:
+            except Exception:
                 sys.exit('')
 
     print("Socket terminado.")
