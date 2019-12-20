@@ -205,5 +205,4 @@ if __name__ == "__main__":
             except:
                 sys.exit('')
 
-
     print("Socket terminado.")
