@@ -19,7 +19,7 @@ class SIPHandler(socketserver.DatagramRequestHandler):
         """Server handler."""
         line = self.rfile.read()
         line = line.decode('utf-8')
-        message_client = line.split('\r\n\r\n')
+        message_client = line.split('\r\n')
         print(message_client)
         cabecera = message_client[0].split(' ')
         method = cabecera[0]
@@ -36,12 +36,11 @@ class SIPHandler(socketserver.DatagramRequestHandler):
             if method == 'INVITE':
                 reply = (b'SIP/2.0 100 Trying \r\n\r\n')
                 reply = (reply + b'SIP/2.0 180 Ringing\r\n\r\n')
-                reply = (reply + b'SIP/2.0 200 OK\r\n\r\n')
+                reply = (reply + b'SIP/2.0 200 OK\r\n')
                 self.wfile.write(reply)
                 log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
-                content = message_client[2].split('\r\n')
-                origen_ip = content[1].split(' ')[1]
-                origen_puertortp = content[4].split(' ')[1]
+                origen_ip = message_client[4].split(' ')[1]
+                origen_puertortp = message_client[7].split(' ')[1]
                 self.RTP_dict['origen_usernam'] = (origen_ip, origen_puertortp)
                 sdp = ('Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                        'o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP + '\r\n' +
