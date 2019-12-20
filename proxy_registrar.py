@@ -117,8 +117,10 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         self.expires_users()
         line = self.rfile.read()
         line = line.decode('utf-8')
-        message_client = line.split('\r\n\r\n')
+        message_client = line.split('\r\n')
+        print(message_client)
         cabecera = message_client[0].split(' ')
+        print(cabecera)
         method = cabecera[0]
         sip_user = cabecera[1].split(':')
         sip = sip_user[0]
@@ -128,34 +130,34 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         if sip != 'sip' or version != 'SIP/2.0':
             reply = (b"SIP/2.0 400 Bad Request\r\n\r\n")
             self.wfile.write(reply)
-            log.log_senting(IP_client, Port_client, reply.decode('utf-8'))
+            log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
         else:
             if method == 'REGISTER':
                 sip_address = sip_user[1]
                 server_puerto = sip_user[2]
-                if len(message_client) == 2:
+                try:
+                    expires_value = int(message_client[1].split(': ')[1])
+                    print(expires_value)
+                except ValueError:
+                    self.wfile.write(b"SIP/2.0 400 error\r\n\r\n")
+                if expires_value == 0:
+                    self.delete_user(sip_address)
+                    print(self.dict_users)
+                if len(message_client) == 4 and expires_value != 0:
                     nonce = random.randint(10**19, 10**20)
                     self.dict_nonce[sip_address] = nonce
-                    reply = (b'SIP/2.0 401 Unauthorized\r\n\r\n')
-                    reply += (b'WWW Authenticate: Digest nonce="')
+                    reply = (b'SIP/2.0 401 Unauthorized\r\n')
+                    reply += (b'WWW-Authenticate: Digest nonce="')
                     reply += ((bytes(str(nonce) + '"', 'utf-8')) + b'\r\n\r\n')
                     self.wfile.write(reply)
                     log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
-                elif len(message_client) == 3:
-                    sip_digest = message_client[1].split('"')[1]
+                elif len(message_client) == 5:
+                    sip_digest = message_client[2].split('"')[1]
                     digest = self.get_digest(sip_address)
                     if sip_address in self.dict_nonce:
                         nonce = self.dict_nonce
                     if sip_digest == digest:
-                        try:
-                            expires_value = int(cabecera[4])
-                            print(expires_value)
-                        except ValueError:
-                            self.wfile.write(b"SIP/2.0 400 error\r\n")
-                        if expires_value == 0:
-                            self.delete_user(sip_address)
-                            print(self.dict_users)
-                        elif expires_value > 0:
+                        if expires_value > 0:
                             expires_value = expires_value + time.time()
                             gmtime = (time.gmtime(expires_value))
                             expires_value = time.strftime('%Y-%m-%d %H:%M:%S',
@@ -163,8 +165,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                             self.add_user(sip_address, expires_value,
                                           server_puerto)
                     else:
-                        reply = (b'SIP/2.0 401 Unauthorized\r\n\r\n')
-                        reply += (b'WWW Authenticate: Digest nonce="')
+                        reply = (b'SIP/2.0 401 Unauthorized\r\n')
+                        reply += (b'WWW-Authenticate: Digest nonce="')
                         reply += ((bytes(str(nonce) + '"', 'utf-8')) +
                                   b'\r\n\r\n')
                         self.wfile.write(reply)
