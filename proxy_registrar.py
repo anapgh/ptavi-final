@@ -188,7 +188,7 @@ class SmallXMLHandler(ContentHandler):
     """Class to read .xml file."""
 
     def __init__(self):
-        """ Tag diccionary."""
+        """Tag diccionary."""
         self.dicc = {}
         self.elemDict = {
                         "server": ["name", "ip", "puerto"],
@@ -198,13 +198,13 @@ class SmallXMLHandler(ContentHandler):
                         }
 
     def startElement(self, name, attrs):
-        """ Method to open tag."""
+        """Method to open tag."""
         if name in self.elemDict:
             for atributo in self.elemDict[name]:
                 self.dicc[name + '_' + atributo] = attrs.get(atributo, "")
 
     def get_tags(self):
-        """ Method to return tag value. """
+        """Method to return tag value."""
         return(self.dicc)
 
 
