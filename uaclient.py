@@ -103,12 +103,15 @@ def send_message(reply):
 
 def send_rtp(origen_ip, origen_puertortp):
     """Send multimedia content by RTP."""
-    # aEjecutar es un string con lo que se ha de ejecutar en la shell
+    # Ejecutar y escuchar un string con lo que se ha de ejecutar en la shell
     aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
     aEjecutar += " < " + AUDIO_PATH
+    aEscuchar = "cvlc rtp://@"+ origen_ip + ":" + origen_puertortp + '&'
     print("Vamos a ejecutar", aEjecutar)
     log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
+    os.system(aEscuchar)
     os.system(aEjecutar)
+
 
 
 if __name__ == "__main__":
