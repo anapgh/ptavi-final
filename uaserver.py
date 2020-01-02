@@ -39,8 +39,8 @@ class SIPHandler(socketserver.DatagramRequestHandler):
                 reply = (reply + b'SIP/2.0 200 OK\r\n')
                 self.wfile.write(reply)
                 log.log_sent(IP_client, Port_client, reply.decode('utf-8'))
-                origen_ip = message_client[4].split(' ')[1]
-                origen_puertortp = message_client[7].split(' ')[1]
+                origen_ip = message_client[6].split(' ')[1]
+                origen_puertortp = message_client[9].split(' ')[1]
                 self.RTP_dict['origen_usernam'] = (origen_ip, origen_puertortp)
                 sdp = ('Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                        'o=' + ACCOUNT_USERNAME + ' ' + UASERVER_IP + '\r\n' +
