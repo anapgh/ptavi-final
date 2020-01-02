@@ -87,8 +87,17 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             server_puerto = int(self.dict_users[user][1])
             try:
                 my_socket.connect((server_ip, server_puerto))
-                print("Enviando:", line)
-                my_socket.send(bytes(line, 'utf-8') + b'\r\n\r\n')
+                #cabecera_proxy = 'Via: ' + 'SIP/2.0/UDP ' + SERVER_IP + ':'
+                #cabecera_proxy += str(SERVER_PUERTO) + '\r\n'
+                #cabecera_proxy += 'User-Agent: ' + SERVER_NAME
+                #lines = line + cabecera_proxy
+                mens = line.split('\r\n\r\n')
+                mens_proxy = mens[0] + '\r\nVia: SIP/2.0/UDP ' + SERVER_IP
+                mens_proxy += ':' + str(SERVER_PUERTO) + '\r\n'
+                mens_proxy += 'User-Agent: ' + SERVER_NAME + '\r\n\r\n'
+                mens_proxy += mens[1]
+                print("Enviando:", mens_proxy)
+                my_socket.send(bytes(mens_proxy, 'utf-8') + b'\r\n\r\n')
                 data = my_socket.recv(1024)
                 print('Recibido -- ', data.decode('utf-8'))
                 self.wfile.write(data)
@@ -137,7 +146,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 server_puerto = sip_user[2]
                 try:
                     expires_value = int(message_client[1].split(': ')[1])
-                    print(expires_value)
                 except ValueError:
                     self.wfile.write(b"SIP/2.0 400 error\r\n\r\n")
                 if expires_value == 0:
@@ -154,6 +162,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 elif len(message_client) == 5:
                     sip_digest = message_client[2].split('"')[1]
                     digest = self.get_digest(sip_address)
+                    print(digest)
                     if sip_address in self.dict_nonce:
                         nonce = self.dict_nonce
                     if sip_digest == digest:
