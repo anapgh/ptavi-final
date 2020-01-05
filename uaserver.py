@@ -7,7 +7,8 @@ import sys
 import os
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from uaclient import log_file, SmallXMLHandler
+from proxy_registrar import CheckIP
+from uaclient import log_file, SmallXMLHandler, CheckIP
 
 
 class SIPHandler(socketserver.DatagramRequestHandler):
@@ -77,6 +78,9 @@ if __name__ == "__main__":
     except (IndexError, ValueError):
         sys.exit('Usage: python3 uaserver.py config')
 
+    # Creo un objeto para evaluar la direccion IP
+    CHECKIP = CheckIP()
+
     # Con el manejador, creo un diccionario 'config' con el fichero xml
     parser = make_parser()
     cHandler = SmallXMLHandler()
@@ -93,6 +97,11 @@ if __name__ == "__main__":
     REGPROXY_PUERTO = int(config['regproxy_puerto'])
     LOG_PATH = config['log_path']
     AUDIO_PATH = config['audio_path']
+
+    if UASERVER_IP == '' or UASERVER_IP == 'localhost':
+        SERVER_IP = '127.0.0.1'
+    if not CHECKIP.check_ip(UASERVER_IP):
+        sys.exit('IP no valida en el fichero de configuración')
 
     # Creo el objeto de la clase log, para escribir en el fichero
     log = log_file()
