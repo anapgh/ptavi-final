@@ -7,6 +7,7 @@ from xml.sax.handler import ContentHandler
 import os
 import hashlib
 import time
+import threading
 
 
 class log_file():
@@ -106,11 +107,15 @@ def send_rtp(origen_ip, origen_puertortp):
     # Ejecutar y escuchar un string con lo que se ha de ejecutar en la shell
     aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
     aEjecutar += " < " + AUDIO_PATH
-    aEscuchar = "cvlc rtp://@"+ origen_ip + ":" + origen_puertortp + '&'
-    print("Vamos a ejecutar", aEjecutar)
+    aEscuchar = "cvlc rtp://@"+ origen_ip + ":" + origen_puertortp +'&'
+    hcvlc = threading.Thread(target=os.system(aEscuchar))
+    hmp3 = threading.Thread(target=os.system(aejecutar))
+    hcvlc.start()
+    hmp3.start()
     log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
-    os.system(aEscuchar)
-    os.system(aEjecutar)
+    return aEscuchar + aejecutar
+
+
 
 
 
