@@ -10,7 +10,7 @@ import time
 import json
 import random
 import hashlib
-from uaclient import log_file
+from uaclient import log_file, CheckIP
 
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
@@ -87,10 +87,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             server_puerto = int(self.dict_users[user][1])
             try:
                 my_socket.connect((server_ip, server_puerto))
-                #cabecera_proxy = 'Via: ' + 'SIP/2.0/UDP ' + SERVER_IP + ':'
-                #cabecera_proxy += str(SERVER_PUERTO) + '\r\n'
-                #cabecera_proxy += 'User-Agent: ' + SERVER_NAME
-                #lines = line + cabecera_proxy
                 mens = line.split('\r\n\r\n')
                 mens_proxy = mens[0] + '\r\nVia: SIP/2.0/UDP ' + SERVER_IP
                 mens_proxy += ':' + str(SERVER_PUERTO) + '\r\n'
@@ -226,6 +222,9 @@ if __name__ == "__main__":
     except (IndexError, ValueError):
         sys.exit('Usage: python3 proxy_registrar.py config')
 
+    # Creo un objeto para evaluar la direccion IP
+    CHECKIP = CheckIP()
+
     # Con el manejador, creo un diccionario 'config' con el fichero xml
     parser = make_parser()
     cHandler = SmallXMLHandler()
@@ -239,6 +238,14 @@ if __name__ == "__main__":
     DATABASE_PATH = config['database_path']
     DATABASE_PASSWDPATH = config['database_passwdpath']
     LOG_PATH = config['log_path']
+
+    try:
+        if SERVER_IP == '' or SERVER_IP == 'localhost':
+            SERVER_IP = '127.0.0.1'
+        if not CHECKIP.check_ip(SERVER_IP):
+            sys.exit('IP no valida en el fichero de configuración')
+    except (IndexError, ValueError):
+        sys.exit('Usage: python3 proxy_registar.py config.')
 
     # Creo el log
     log = log_file()
