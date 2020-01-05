@@ -10,6 +10,46 @@ import time
 import threading
 
 
+class CheckIP():
+    """Class to check if ip addess is correct."""
+
+    def __init__(self):
+        """Init the boolean."""
+        self.ip_correct = True
+
+    def check_ip(self, ip):
+        """Check if ip is valid."""
+        ip_valid = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.']
+        rango = list(range(256))
+        self.ip_correct = True
+        try:
+            primero = int(ip.split('.')[0])
+            segundo = int(ip.split('.')[1])
+            tercero = int(ip.split('.')[2])
+            cuarto = int(ip.split('.')[3])
+            punto = 0
+            for character in ip:
+                if character not in ip_valid:
+                    self.ip_correct = False
+                if character == '.':
+                    punto = punto + 1
+            if punto != 3:
+                self.ip_correct = False
+            if primero < 127 or primero > 223:
+                self.ip_correct = False
+            else:
+                if segundo not in rango:
+                    self.ip_correct = False
+                if tercero not in rango:
+                    self.ip_correct = False
+                if cuarto not in rango:
+                    self.ip_correct = False
+        except (IndexError, ValueError):
+            self.ip_correct = False
+
+        return self.ip_correct
+
+
 class log_file():
     """Class to write in log file."""
 
@@ -116,9 +156,6 @@ def send_rtp(origen_ip, origen_puertortp):
     return aEscuchar + aejecutar
 
 
-
-
-
 if __name__ == "__main__":
     # Constantes. Fichero xml, metodo a usar y opcion de cada metodo
     try:
@@ -127,6 +164,9 @@ if __name__ == "__main__":
         OPCION = sys.argv[3]
     except (IndexError, ValueError):
         sys.exit('Usage: client.py config method opcion ')
+
+    # Creo un objeto para evaluar la direccion IP
+    CHECKIP = CheckIP()
 
     # Con el manejador, creo un diccionario 'config' con el fichero xml
     parser = make_parser()
@@ -145,6 +185,13 @@ if __name__ == "__main__":
     REGPROXY_PUERTO = int(config['regproxy_puerto'])
     LOG_PATH = config['log_path']
     AUDIO_PATH = config['audio_path']
+
+    if REGPROXY_IP == '' or REGPROXY_IP == 'localhost':
+        REGPROXY_IP = '127.0.0.1'
+    if UASERVER_IP == '' or UASERVER_IP == 'localhost':
+        MY_IP = '127.0.0.1'
+    if not CHECKIP.check_ip(REGPROXY_IP) or not CHECKIP.check_ip(UASERVER_IP):
+        sys.exit('IP no valida en el fichero de configuración')
 
     # Creo el log
     log = log_file()
