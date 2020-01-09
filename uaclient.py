@@ -8,7 +8,6 @@ import os
 import hashlib
 import time
 import threading
-import simplertp
 
 
 class CheckIP():
@@ -150,23 +149,11 @@ def send_rtp(origen_ip, origen_puertortp):
     aEjecutar += " < " + AUDIO_PATH
     aEscuchar = "cvlc rtp://@" + origen_ip + ":" + origen_puertortp + '&'
     hcvlc = threading.Thread(target=os.system(aEscuchar))
+    hmp3 = threading.Thread(target=os.system(aejecutar))
     hcvlc.start()
+    hmp3.start()
     log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
-    # Uso el modulo simplertp
-    cabeceraRTP = simplertp.RtpHeader()
-    csrc = [2000, 3000, 4000, 5000]
-    cabeceraRTP.set_header(version=2, pad_flag=0, ext_flag=0, cc=4, marker=0,
-                           payload_type=90, ssrc=1000)
-    cabeceraRTP.setCSRC(csrc)
-    audio = simplertp.RtpPayloadMp3()
-    audio.set_audio(AUDIO_PATH)
-    numeroPaquetesRTP = 0
-    paquetesMP3porRTP = 2
-    ip = origen_ip
-    port = int(origen_puertortp)
-    simplertp.send_rtp_packet(numeroPaquetesRTP, cabeceraRTP, audio, ip, port,
-                              paquetesMP3porRTP)
-    return aejecutar
+    return aEscuchar + aejecutar
 
 
 if __name__ == "__main__":
