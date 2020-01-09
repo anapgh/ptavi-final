@@ -148,12 +148,11 @@ def send_rtp(origen_ip, origen_puertortp):
     # Ejecutar y escuchar un string con lo que se ha de ejecutar en la shell
     aEjecutar = "./mp32rtp -i " + origen_ip + " -p " + origen_puertortp
     aEjecutar += " < " + AUDIO_PATH
-    aEscuchar = "cvlc rtp://@"+ origen_ip + ":" + origen_puertortp +'&'
+    aEscuchar = "cvlc rtp://@" + origen_ip + ":" + origen_puertortp + '&'
     hcvlc = threading.Thread(target=os.system(aEscuchar))
     hcvlc.start()
     log.log_rtp(origen_ip, origen_puertortp, AUDIO_PATH)
-
-
+    # Uso el modulo simplertp
     cabeceraRTP = simplertp.RtpHeader()
     csrc = [2000, 3000, 4000, 5000]
     cabeceraRTP.set_header(version=2, pad_flag=0, ext_flag=0, cc=4, marker=0,
@@ -167,8 +166,6 @@ def send_rtp(origen_ip, origen_puertortp):
     port = int(origen_puertortp)
     simplertp.send_rtp_packet(numeroPaquetesRTP, cabeceraRTP, audio, ip, port,
                               paquetesMP3porRTP)
-
-
     return aejecutar
 
 
